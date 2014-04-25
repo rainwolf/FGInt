@@ -1,0 +1,5 @@
+#!/bin/sh
+fpc test
+rm *.o *.ppu
+./test
+rm test
