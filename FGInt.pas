@@ -68,7 +68,36 @@ Procedure FGIntPencilPaperSquare(Const FGInt : TFGInt; Var Square : TFGInt);
 // Procedure FGIntKaratsubaSquare(Const FGInt : TFGInt; Var Square : TFGInt; Const karatsubaThreshold : LongWord);
 Procedure FGIntKaratsubaSquare(Const FGInt : TFGInt; Var Square : TFGInt);
 Procedure FGIntSquare(Const FGInt : TFGInt; Var Square : TFGInt);
+Procedure FGIntMulByInt(Const FGInt : TFGInt; Var res : TFGInt; by : LongWord);
+Procedure FGIntMulByIntbis(Var FGInt : TFGInt; by : LongWord);
+Procedure FGIntDivByInt(Const FGInt : TFGInt; Var res : TFGInt; by : LongWord; Var modres : LongWord);
+// Procedure FGIntDivByIntBis(Var FGInt : TFGInt; by : LongWord; Var modres : LongWord);
+Procedure FGIntExp(Const FGInt, exp : TFGInt; Var res : TFGInt);
+Procedure FGIntFac(Const FGInt : TFGInt; Var res : TFGInt);
+Procedure FGIntDivMod(Var FGInt1, FGInt2, QFGInt, MFGInt : TFGInt);
+Procedure FGIntDiv(Var FGInt1, FGInt2, QFGInt : TFGInt);
+Procedure FGIntMulByIntSubBis(Var FGInt1 : TFGInt; Const FGInt2 : TFGInt; divInt : LongWord);
+Procedure FGIntMod(Var FGInt1, FGInt2, MFGInt : TFGInt);
+Procedure FGIntSquareMod(Var FGInt, Modb, FGIntSM : TFGInt);
+Procedure FGIntAddMod(Var FGInt1, FGInt2, base, FGIntres : TFGInt);
+Procedure FGIntMulMod(Var FGInt1, FGInt2, base, FGIntres : TFGInt);
 
+
+
+Procedure FGIntModBis(Const FGInt : TFGInt; Var FGIntOut : TFGInt; b, head : LongWord);
+Procedure FGIntMulModBis(Const FGInt1, FGInt2 : TFGInt; Var Prod : TFGInt; b, head : LongWord);
+Procedure FGIntMontgomeryModExp(Var FGInt, exp, modb, res : TFGInt);
+Procedure FGIntModExp(Var FGInt, exp, modb, res : TFGInt);
+
+Procedure FGIntGCD(Const FGInt1, FGInt2 : TFGInt; Var GCD : TFGInt);
+Procedure FGIntLCM(Const FGInt1, FGInt2 : TFGInt; Var LCM : TFGInt);
+Procedure FGIntRandom1(Var Seed, RandomFGInt : TFGInt);
+Procedure FGIntRabinMiller(Var FGIntp : TFGInt; nrtest : Longword; Var ok : boolean);
+Procedure FGIntBezoutBachet(Var FGInt1, FGInt2, a, b : TFGInt);
+Procedure FGIntModInv(Const FGInt1, base : TFGInt; Var Inverse : TFGInt);
+Procedure FGIntPrimetest(Var FGIntp : TFGInt; nrRMtests : integer; Var ok : boolean);
+Procedure FGIntLegendreSymbol(Var a, p : TFGInt; Var L : integer);
+Procedure FGIntSquareRootModP(Square, Prime : TFGInt; Var SquareRoot : TFGInt);
 
 
 
@@ -495,7 +524,7 @@ End;
 Procedure FGIntDivByIntBis(Var FGInt : TFGInt; by : LongWord; Var modres : LongWord);
 Var
    i, size : LongWord;
-   temp, rest : int64;
+   temp, rest : uint64;
 Begin
    size := FGInt.Number[0];
    temp := 0;
@@ -1014,5 +1043,1167 @@ Begin
    else
       FGIntPencilPaperSquare(FGInt, square);
 End;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// multiply a FGInt by an integer, FGInt * by = res, by < 2147483648
+
+Procedure FGIntMulByInt(Const FGInt : TFGInt; Var res : TFGInt; by : LongWord);
+Var
+   i, size, rest : LongWord;
+   Trest : uint64;
+Begin
+   size := FGInt.Number[0];
+   setlength(res.Number, (size + 2));
+   rest := 0;
+   For i := 1 To size Do
+   Begin
+      Trest := FGInt.Number[i];
+      TRest := Trest * by;
+      TRest := Trest + rest;
+      res.Number[i] := Trest And 4294967295;
+      rest := Trest Shr 32;
+   End;
+   If rest <> 0 Then
+   Begin
+      size := size + 1;
+      Res.Number[size] := rest;
+   End
+   Else
+      SetLength(Res.Number, size + 1);
+   Res.Number[0] := size;
+   Res.Sign := FGInt.Sign;
+End;
+
+
+// multiply a FGInt by an integer, FGInt * by = res, by < 1000000000
+
+Procedure FGIntMulByIntbis(Var FGInt : TFGInt; by : LongWord);
+Var
+   i, size, rest : LongWord;
+   Trest : uint64;
+Begin
+   size := FGInt.Number[0];
+   Setlength(FGInt.Number, size + 2);
+   rest := 0;
+   For i := 1 To size Do
+   Begin
+      Trest := FGInt.Number[i];
+      TRest := Trest * by;
+      TRest := Trest + rest;
+      FGInt.Number[i] := Trest And 4294967295;
+      rest := Trest Shr 32;
+   End;
+   If rest <> 0 Then
+   Begin
+      size := size + 1;
+      FGInt.Number[size] := rest;
+   End
+   Else
+      SetLength(FGInt.Number, size + 1);
+   FGInt.Number[0] := size;
+End;
+
+
+// divide a FGInt by an integer, FGInt = res * by + modres
+
+Procedure FGIntDivByInt(Const FGInt : TFGInt; Var res : TFGInt; by : LongWord; Var modres : LongWord);
+Var
+   i, size : LongWord;
+   rest : uint64;
+Begin
+   size := FGInt.Number[0];
+   setlength(res.Number, (size + 1));
+   modres := 0;
+   For i := size Downto 1 Do
+   Begin
+      rest := modres;
+      rest := rest Shl 32;
+      rest := rest Or FGInt.Number[i];
+      res.Number[i] := rest Div by;
+      modres := rest Mod by;
+   End;
+   While (res.Number[size] = 0) And (size > 1) Do
+      size := size - 1;
+   If size <> FGInt.Number[0] Then SetLength(res.Number, size + 1);
+   res.Number[0] := size;
+   Res.Sign := FGInt.Sign;
+   If FGInt.sign = negative Then modres := by - modres;
+End;
+                                                         
+
+
+// Reduce a FGInt modulo by (=an integer), FGInt mod by = modres
+
+Procedure FGIntModByInt(Const FGInt : TFGInt; by : LongWord; Var modres : LongWord);
+Var
+   i, size : LongWord;
+   temp, rest : uint64;
+Begin
+   size := FGInt.Number[0];
+   temp := 0;
+   For i := size Downto 1 Do
+   Begin
+      temp := temp Shl 32;
+      rest := temp Or FGInt.Number[i];
+      temp := rest Mod by;
+   End;
+   modres := temp;
+   If FGInt.sign = negative Then modres := by - modres;
+End;
+
+
+
+
+
+
+
+
+
+
+// Exponentiate a FGInt, FGInt^exp = res
+
+Procedure FGIntExp(Const FGInt, exp : TFGInt; Var res : TFGInt);
+Var
+   temp2, temp3 : TFGInt;
+   S : String;
+   i : LongWord;
+Begin
+   FGIntToBase2String(exp, S);
+   If S[length(S)] = '0' Then Base10StringToFGInt('1', res) Else FGIntCopy(FGInt, res);
+   FGIntCopy(FGInt, temp2);
+   If length(S) > 1 Then
+      For i := (length(S) - 1) Downto 1 Do
+      Begin
+         FGIntSquare(temp2, temp3);
+         FGIntCopy(temp3, temp2);
+         If S[i] = '1' Then
+         Begin
+            FGIntMul(res, temp2, temp3);
+            FGIntCopy(temp3, res);
+         End;
+      End;
+End;
+
+
+// Compute FGInt! = FGInt * (FGInt - 1) * (FGInt - 2) * ... * 3 * 2 * 1
+
+Procedure FGIntFac(Const FGInt : TFGInt; Var res : TFGInt);
+Var
+   one, temp, temp1 : TFGInt;
+Begin
+   FGIntCopy(FGInt, temp);
+   Base10StringToFGInt('1', res);
+   Base10StringToFGInt('1', one);
+
+   While Not (FGIntCompareAbs(temp, one) = Eq) Do
+   Begin
+      FGIntMul(temp, res, temp1);
+      FGIntCopy(temp1, res);
+      FGIntSubBis(temp, one);
+   End;
+
+   FGIntDestroy(one);
+   FGIntDestroy(temp);
+End;
+
+
+
+// Divide 2 FGInts, FGInt1 = FGInt2 * QFGInt + MFGInt, MFGInt is always positive
+
+Procedure FGIntDivMod(Var FGInt1, FGInt2, QFGInt, MFGInt : TFGInt);
+Var
+   one, zero, temp1 : TFGInt;
+   s1, s2 : TSign;
+   j, s, t : LongWord;
+   i, k : uint64;
+Begin
+   s1 := FGInt1.Sign;
+   s2 := FGInt2.Sign;
+   FGIntAbs(FGInt1);
+   FGIntAbs(FGInt2);
+   FGIntCopy(FGInt1, MFGInt);
+   FGIntCopy(FGInt2, temp1);
+
+   If FGIntCompareAbs(FGInt1, FGInt2) <> St Then
+   Begin
+      s := FGInt1.Number[0] - FGInt2.Number[0];
+      SetLength(QFGInt.Number, (s + 2));
+      QFGInt.Number[0] := s + 1;
+      FGIntShiftLeftBy32Times(temp1, s);
+      For t := 1 To s Do
+      Begin
+         QFGInt.Number[t] := 0;
+      End;
+      j := s + 1;
+      QFGInt.Number[j] := 0;
+      While FGIntCompareAbs(MFGInt, FGInt2) <> St Do
+      Begin
+         While FGIntCompareAbs(MFGInt, temp1) <> St Do
+         Begin
+            If MFGInt.Number[0] > temp1.Number[0] Then
+            Begin
+               i := MFGInt.Number[MFGInt.Number[0]];
+               i := i Shl 32;
+               i := i + MFGInt.Number[MFGInt.Number[0] - 1];
+               i := i Div (temp1.Number[temp1.Number[0]] + 1);
+            End
+            Else
+//               i := MFGInt.Number[MFGInt.Number[0]] Div (temp1.Number[temp1.Number[0]] + 1);
+            Begin
+                If (MFGInt.Number[0] > 1) And (FGInt2.Number[0] > 1) Then
+                Begin
+                   i := MFGInt.Number[MFGInt.Number[0]];
+                   i := i Shl 32;
+                   i := i + MFGInt.Number[MFGInt.Number[0] - 1];
+                   k := temp1.Number[temp1.Number[0]];
+                   k := k shl 32;
+                   k := k + temp1.Number[temp1.Number[0] - 1] + 1;
+                   i := i Div k;
+                End
+                Else
+                   i := MFGInt.Number[MFGInt.Number[0]] Div (temp1.Number[temp1.Number[0]] + 1);
+            End;
+            If (i <> 0) Then
+            Begin
+               FGIntMulByIntSubBis(MFGInt, temp1, i);
+               QFGInt.Number[j] := QFGInt.Number[j] + i;
+            End
+            Else
+            Begin
+               QFGInt.Number[j] := QFGInt.Number[j] + 1;
+               FGIntSubBis(MFGInt, temp1);
+            End;
+         End;
+         If MFGInt.Number[0] <= temp1.Number[0] Then
+            If FGIntCompareAbs(temp1, FGInt2) <> Eq Then
+            Begin
+               FGIntShiftRightBy32(temp1);
+               j := j - 1;
+            End;
+      End;
+   End
+   Else
+      Base10StringToFGInt('0', QFGInt);
+   s := QFGInt.Number[0];
+   While (s > 1) And (QFGInt.Number[s] = 0) Do
+      s := s - 1;
+   If s < QFGInt.Number[0] Then
+   Begin
+      setlength(QFGInt.Number, s + 1);
+      QFGInt.Number[0] := s;
+   End;
+   QFGInt.Sign := positive;
+
+   FGIntDestroy(temp1);
+   Base10StringToFGInt('0', zero);
+   Base10StringToFGInt('1', one);
+   If s1 = negative Then
+   Begin
+      If FGIntCompareAbs(MFGInt, zero) <> Eq Then
+      Begin
+         FGIntadd(QFGInt, one, temp1);
+         FGIntDestroy(QFGInt);
+         FGIntCopy(temp1, QFGInt);
+         FGIntDestroy(temp1);
+         FGIntsub(FGInt2, MFGInt, temp1);
+         FGIntDestroy(MFGInt);
+         FGIntCopy(temp1, MFGInt);
+         FGIntDestroy(temp1);
+      End;
+      If s2 = positive Then QFGInt.Sign := negative;
+   End
+   Else
+      QFGInt.Sign := s2;
+   FGIntDestroy(one);
+   FGIntDestroy(zero);
+
+   FGInt1.Sign := s1;
+   FGInt2.Sign := s2;
+End;
+
+
+// Same as above but doesn 't compute MFGInt
+
+Procedure FGIntDiv(Var FGInt1, FGInt2, QFGInt : TFGInt);
+Var
+   one, zero, temp1, MFGInt : TFGInt;
+   s1, s2 : TSign;
+   j, s, t : LongWord;
+   i, k : int64;
+Begin
+   s1 := FGInt1.Sign;
+   s2 := FGInt2.Sign;
+   FGIntAbs(FGInt1);
+   FGIntAbs(FGInt2);
+   FGIntCopy(FGInt1, MFGInt);
+   FGIntCopy(FGInt2, temp1);
+
+   If FGIntCompareAbs(FGInt1, FGInt2) <> St Then
+   Begin
+      s := FGInt1.Number[0] - FGInt2.Number[0];
+      SetLength(QFGInt.Number, (s + 2));
+      QFGInt.Number[0] := s + 1;
+      FGIntShiftLeftBy32Times(temp1, s);
+      For t := 1 To s Do
+      Begin
+         QFGInt.Number[t] := 0;
+      End;
+      j := s + 1;
+      QFGInt.Number[j] := 0;
+      While FGIntCompareAbs(MFGInt, FGInt2) <> St Do
+      Begin
+         While FGIntCompareAbs(MFGInt, temp1) <> St Do
+         Begin
+            If MFGInt.Number[0] > temp1.Number[0] Then
+            Begin
+               i := MFGInt.Number[MFGInt.Number[0]];
+               i := i Shl 32;
+               i := i + MFGInt.Number[MFGInt.Number[0] - 1];
+               i := i Div (temp1.Number[temp1.Number[0]] + 1);
+            End
+            Else
+//               i := MFGInt.Number[MFGInt.Number[0]] Div (temp1.Number[temp1.Number[0]] + 1);
+            Begin
+                If (MFGInt.Number[0] > 1) And (FGInt2.Number[0] > 1) Then
+                Begin
+                   i := MFGInt.Number[MFGInt.Number[0]];
+                   i := i Shl 32;
+                   i := i + MFGInt.Number[MFGInt.Number[0] - 1];
+                   k := temp1.Number[temp1.Number[0]];
+                   k := k shl 32;
+                   k := k + temp1.Number[temp1.Number[0] - 1] + 1;
+                   i := i Div k;
+                End
+                Else
+                   i := MFGInt.Number[MFGInt.Number[0]] Div (temp1.Number[temp1.Number[0]] + 1);
+            End;
+            If (i <> 0) Then
+            Begin
+               FGIntMulByIntSubBis(MFGInt, temp1, i);
+               QFGInt.Number[j] := QFGInt.Number[j] + i;
+            End
+            Else
+            Begin
+               QFGInt.Number[j] := QFGInt.Number[j] + 1;
+               FGIntSubBis(MFGInt, temp1);
+            End;
+         End;
+         If MFGInt.Number[0] <= temp1.Number[0] Then
+            If FGIntCompareAbs(temp1, FGInt2) <> Eq Then
+            Begin
+               FGIntShiftRightBy32(temp1);
+               j := j - 1;
+            End;
+      End;
+   End
+   Else
+      Base10StringToFGInt('0', QFGInt);
+   s := QFGInt.Number[0];
+   While (s > 1) And (QFGInt.Number[s] = 0) Do
+      s := s - 1;
+   If s < QFGInt.Number[0] Then
+   Begin
+      setlength(QFGInt.Number, s + 1);
+      QFGInt.Number[0] := s;
+   End;
+   QFGInt.Sign := positive;
+
+   FGIntDestroy(temp1);
+   Base10StringToFGInt('0', zero);
+   Base10StringToFGInt('1', one);
+   If s1 = negative Then
+   Begin
+      If FGIntCompareAbs(MFGInt, zero) <> Eq Then
+      Begin
+         FGIntadd(QFGInt, one, temp1);
+         FGIntDestroy(QFGInt);
+         FGIntCopy(temp1, QFGInt);
+         FGIntDestroy(temp1);
+         FGIntsub(FGInt2, MFGInt, temp1);
+         FGIntDestroy(MFGInt);
+         FGIntCopy(temp1, MFGInt);
+         FGIntDestroy(temp1);
+      End;
+      If s2 = positive Then QFGInt.Sign := negative;
+   End
+   Else
+      QFGInt.Sign := s2;
+   FGIntDestroy(one);
+   FGIntDestroy(zero);
+   FGIntDestroy(MFGInt);
+
+   FGInt1.Sign := s1;
+   FGInt2.Sign := s2;
+End;
+
+
+
+// FGInt1 = FGInt1 - divInt * FGInt2, use only when 0 < FGInt2 < FGInt1
+
+Procedure FGIntMulByIntSubBis(Var FGInt1 : TFGInt; Const FGInt2 : TFGInt; divInt : LongWord);
+Var
+   i, size1, size2, rest : LongWord;
+   mTmpRest, Trest, mRest : uint64;
+Begin
+   size1 := FGInt1.Number[0];
+   size2 := FGInt2.Number[0];
+   rest := 0;
+   mRest := 0;
+   For i := 1 To size2 Do
+   Begin
+      mTmpRest := FGInt2.Number[i];
+      mTmpRest := mTmpRest * divInt;
+      mTmpRest := mTmpRest + mRest;
+      Trest := (4294967296 Or FGInt1.Number[i]) - (mTmpRest And 4294967295) - rest;
+      If (Trest > 4294967295) Then
+         rest := 0
+      Else
+         rest := 1;
+      mRest := mTmpRest shr 32;
+      FGInt1.Number[i] := Trest And 4294967295;
+   End;
+   For i := size2 + 1 To size1 Do
+   Begin
+      Trest := (4294967296 Or FGInt1.Number[i]) - mRest - rest;
+      If (Trest > 4294967295) Then
+         rest := 0
+      Else
+         rest := 1;
+      mRest := mRest shr 32;
+      FGInt1.Number[i] := Trest And 4294967295;
+   End;
+   i := size1;
+   While (FGInt1.Number[i] = 0) And (i > 1) Do
+      i := i - 1;
+   If i <> size1 Then
+   Begin
+      SetLength(FGInt1.Number, i + 1);
+      FGInt1.Number[0] := i;
+   End;
+End;
+
+
+
+Procedure FGIntMod(Var FGInt1, FGInt2, MFGInt : TFGInt);
+Var
+   zero, temp1 : TFGInt;
+   s1, s2 : TSign;
+   s : LongWord;
+   i, j : uint64;
+Begin
+   s1 := FGInt1.Sign;
+   s2 := FGInt2.Sign;
+   FGIntAbs(FGInt1);
+   FGIntAbs(FGInt2);
+   FGIntCopy(FGInt1, MFGInt);
+   FGIntCopy(FGInt2, temp1);
+
+   If FGIntCompareAbs(FGInt1, FGInt2) <> St Then
+   Begin
+      s := FGInt1.Number[0] - FGInt2.Number[0];
+//      For t := 1 To s Do
+      FGIntShiftLeftBy32Times(temp1,s);
+      While FGIntCompareAbs(MFGInt, FGInt2) <> St Do
+      Begin
+         While FGIntCompareAbs(MFGInt, temp1) <> St Do
+         Begin
+            If MFGInt.Number[0] > temp1.Number[0] Then
+            Begin
+               i := MFGInt.Number[MFGInt.Number[0]];
+               i := i Shl 32;
+               i := i + MFGInt.Number[MFGInt.Number[0] - 1];
+               i := i Div (temp1.Number[temp1.Number[0]] + 1);
+            End
+            Else
+//               i := MFGInt.Number[MFGInt.Number[0]] Div (temp1.Number[temp1.Number[0]] + 1);
+            Begin
+                If (MFGInt.Number[0] > 1) And (FGInt2.Number[0] > 1) Then
+                Begin
+                   i := MFGInt.Number[MFGInt.Number[0]];
+                   i := i Shl 32;
+                   i := i + MFGInt.Number[MFGInt.Number[0] - 1];
+                   j := temp1.Number[temp1.Number[0]];
+                   j := j shl 32;
+                   j := j + temp1.Number[temp1.Number[0] - 1] + 1;
+                   i := i Div j;
+                End
+                Else
+                   i := MFGInt.Number[MFGInt.Number[0]] Div (temp1.Number[temp1.Number[0]] + 1);
+            End;
+            If (i <> 0) Then
+            Begin
+               FGIntMulByIntSubBis(MFGInt, temp1, i);
+            End
+            Else
+               FGIntSubBis(MFGInt, temp1);
+         End;
+         If MFGInt.Number[0] <= temp1.Number[0] Then
+            If FGIntCompareAbs(temp1, FGInt2) <> Eq Then FGIntShiftRightBy32(temp1);
+      End;
+   End;
+
+   FGIntDestroy(temp1);
+   Base10StringToFGInt('0', zero);
+   If s1 = negative Then
+   Begin
+      If FGIntCompareAbs(MFGInt, zero) <> Eq Then
+      Begin
+         FGIntSub(FGInt2, MFGInt, temp1);
+         FGIntDestroy(MFGInt);
+         FGIntCopy(temp1, MFGInt);
+         FGIntDestroy(temp1);
+      End;
+   End;
+   FGIntDestroy(zero);
+
+   FGInt1.Sign := s1;
+   FGInt2.Sign := s2;
+End;
+
+
+// Square a FGInt modulo Modb, FGInt^2 mod Modb = FGIntSM
+
+Procedure FGIntSquareMod(Var FGInt, Modb, FGIntSM : TFGInt);
+Var
+   temp : TFGInt;
+Begin
+   FGIntSquare(FGInt, temp);
+   FGIntMod(temp, Modb, FGIntSM);
+   FGIntDestroy(temp);
+End;
+
+
+// Add 2 FGInts modulo base, (FGInt1 + FGInt2) mod base = FGIntres
+
+Procedure FGIntAddMod(Var FGInt1, FGInt2, base, FGIntres : TFGInt);
+Var
+   temp : TFGInt;
+Begin
+   FGIntadd(FGInt1, FGInt2, temp);
+   FGIntMod(temp, base, FGIntres);
+   FGIntDestroy(temp);
+End;
+
+
+// Multiply 2 FGInts modulo base, (FGInt1 * FGInt2) mod base = FGIntres
+
+Procedure FGIntMulMod(Var FGInt1, FGInt2, base, FGIntres : TFGInt);
+Var
+   temp : TFGInt;
+Begin
+   FGIntMul(FGInt1, FGInt2, temp);
+   FGIntMod(temp, base, FGIntres);
+   FGIntDestroy(temp);
+End;
+
+
+// Procedures for Montgomery Exponentiation
+
+Procedure FGIntModBis(Const FGInt : TFGInt; Var FGIntOut : TFGInt; b, head : LongWord);
+Var
+   i : LongWord;
+Begin
+   If b <= FGInt.Number[0] Then
+   Begin
+      SetLength(FGIntOut.Number, (b + 1));
+      For i := 0 To b Do
+         FGIntOut.Number[i] := FGInt.Number[i];
+      FGIntOut.Number[b] := FGIntOut.Number[b] And head;
+      i := b;
+      While (FGIntOut.Number[i] = 0) And (i > 1) Do
+         i := i - 1;
+      If i < b Then SetLength(FGIntOut.Number, i + 1);
+      FGIntOut.Number[0] := i;
+      FGIntOut.Sign := positive;
+   End
+   Else
+      FGIntCopy(FGInt, FGIntOut);
+End;
+
+
+Procedure FGIntMulModBis(Const FGInt1, FGInt2 : TFGInt; Var Prod : TFGInt; b, head : LongWord);
+Var
+   i, j, size, size1, size2, t, rest : LongWord;
+   Trest : uint64;
+Begin
+   size1 := FGInt1.Number[0];
+   size2 := FGInt2.Number[0];
+   size := min(b, size1 + size2);
+   SetLength(Prod.Number, (size + 1));
+   For i := 1 To size Do
+      Prod.Number[i] := 0;
+
+   For i := 1 To size2 Do
+   Begin
+      rest := 0;
+      t := min(size1, b - i + 1);
+      For j := 1 To t Do
+      Begin
+         Trest := FGInt1.Number[j];
+      Trest := Trest * FGInt2.Number[i];
+      Trest := Trest + Prod.Number[j + i - 1];
+      Trest := Trest + rest;
+         Prod.Number[j + i - 1] := Trest And 4294967295;
+         rest := Trest Shr 32;
+      End;
+      If (i + size1) <= b Then Prod.Number[i + size1] := rest;
+   End;
+
+   Prod.Number[0] := size;
+   If size = b Then Prod.Number[b] := Prod.Number[b] And head;
+   While (Prod.Number[size] = 0) And (size > 1) Do
+      size := size - 1;
+   If size < Prod.Number[0] Then
+   Begin
+      SetLength(Prod.Number, size + 1);
+      Prod.Number[0] := size;
+   End;
+   If FGInt1.Sign = FGInt2.Sign Then
+      Prod.Sign := Positive
+   Else
+      prod.Sign := negative;
+End;
+
+
+Procedure FGIntMontgomeryMod(Const GInt, base, baseInv : TFGInt; Var MGInt : TFGInt; b : Longword; head : LongWord);
+Var
+   m, temp, temp1 : TFGInt;
+   r : LongWord;
+Begin
+   FGIntModBis(GInt, temp, b, head);
+   FGIntMulModBis(temp, baseInv, m, b, head);
+   FGIntMul(m, base, temp1);
+   FGIntDestroy(temp);
+   FGIntAdd(temp1, GInt, temp);
+   FGIntDestroy(temp1);
+   MGInt.Number := copy(temp.Number, b - 1, temp.Number[0] - b + 2);
+   MGInt.Sign := positive;
+   MGInt.Number[0] := temp.Number[0] - b + 1;
+   FGIntDestroy(temp);
+   If (head Shr 31) = 0 Then FGIntDivByIntBis(MGInt, head + 1, r)
+   Else FGIntShiftRightBy32(MGInt);
+   If FGIntCompareAbs(MGInt, base) <> St Then FGIntSubBis(MGInt, base);
+   FGIntDestroy(temp);
+   FGIntDestroy(m);
+End;
+
+
+Procedure FGIntMontgomeryModExp(Var FGInt, exp, modb, res : TFGInt);
+Var
+   temp2, temp3, baseInv, r, zero : TFGInt;
+   i, j, t, b, head : LongWord;
+   S: String;
+Begin
+   Base2StringToFGInt('0', zero);
+   FGIntMod(FGInt, modb, res);
+   If FGIntCompareAbs(res, zero)=Eq then
+    Begin
+      FGIntDestroy(zero);
+      Exit;
+    End else FGIntDestroy(res);
+   FGIntDestroy(zero);
+
+   FGIntToBase2String(exp, S);
+   t := modb.Number[0];
+   b := t;
+
+   If (modb.Number[t] Shr 31) = 1 Then t := t + 1;
+   SetLength(r.Number, (t + 1));
+   r.Number[0] := t;
+   r.Sign := positive;
+   For i := 1 To t Do
+      r.Number[i] := 0;
+   If t = modb.Number[0] Then
+   Begin
+      head := 4294967295;
+      For j := 30 Downto 0 Do
+      Begin
+         head := head Shr 1;
+         If (modb.Number[t] Shr j) = 1 Then
+         Begin
+            r.Number[t] := 1 Shl (j + 1);
+            break;
+         End;
+      End;
+   End
+   Else
+   Begin
+      r.Number[t] := 1;
+      head := 4294967295;
+   End;
+
+   FGIntModInv(modb, r, temp2);
+   If temp2.Sign = negative Then
+      FGIntCopy(temp2, BaseInv)
+   Else
+   Begin
+      FGIntCopy(r, BaseInv);
+      FGIntSubBis(BaseInv, temp2);
+   End;
+//   FGIntBezoutBachet(r, modb, temp2, BaseInv);
+   FGIntAbs(BaseInv);
+   FGIntDestroy(temp2);
+   FGIntMod(r, modb, res);
+   FGIntMulMod(FGInt, res, modb, temp2);
+   FGIntDestroy(r);
+
+   For i := length(S) Downto 1 Do
+   Begin
+      If S[i] = '1' Then
+      Begin
+         FGIntmul(res, temp2, temp3);
+         FGIntDestroy(res);
+         FGIntMontgomeryMod(temp3, modb, baseinv, res, b, head);
+         FGIntDestroy(temp3);
+      End;
+      FGIntSquare(temp2, temp3);
+      FGIntDestroy(temp2);
+      FGIntMontgomeryMod(temp3, modb, baseinv, temp2, b, head);
+      FGIntDestroy(temp3);
+   End;
+   FGIntDestroy(temp2);
+   FGIntMontgomeryMod(res, modb, baseinv, temp3, b, head);
+   FGIntCopy(temp3, res);
+   FGIntDestroy(temp3);
+   FGIntDestroy(baseinv);
+End;
+
+
+
+
+// Exponentiate 2 FGInts modulo base, (FGInt1 ^ FGInt2) mod modb = res
+
+Procedure FGIntModExp(Var FGInt, exp, modb, res : TFGInt);
+Var
+   temp2, temp3 : TFGInt;
+   i : LongWord;
+   S : String;
+Begin
+   If (Modb.Number[1] Mod 2) = 1 Then
+   Begin
+      FGIntMontgomeryModExp(FGInt, exp, modb, res);
+      exit;
+   End;
+   FGIntToBase2String(exp, S);
+   Base10StringToFGInt('1', res);
+   FGIntcopy(FGInt, temp2);
+
+   For i := length(S) Downto 1 Do
+   Begin
+      If S[i] = '1' Then
+      Begin
+         FGIntmulMod(res, temp2, modb, temp3);
+         FGIntCopy(temp3, res);
+      End;
+      FGIntSquareMod(temp2, Modb, temp3);
+      FGIntCopy(temp3, temp2);
+   End;
+   FGIntDestroy(temp2);
+End;
+
+
+
+
+
+
+// Compute the Greatest Common Divisor of 2 FGInts
+
+Procedure FGIntGCD(Const FGInt1, FGInt2 : TFGInt; Var GCD : TFGInt);
+Var
+   k : TCompare;
+   zero, temp1, temp2, temp3 : TFGInt;
+Begin
+   k := FGIntCompareAbs(FGInt1, FGInt2);
+   If (k = Eq) Then FGIntCopy(FGInt1, GCD) Else
+      If (k = St) Then FGIntGCD(FGInt2, FGInt1, GCD) Else
+      Begin
+         Base10StringToFGInt('0', zero);
+         FGIntCopy(FGInt1, temp1);
+         FGIntCopy(FGInt2, temp2);
+         While (temp2.Number[0] <> 1) Or (temp2.Number[1] <> 0) Do
+         Begin
+            FGIntMod(temp1, temp2, temp3);
+            FGIntCopy(temp2, temp1);
+            FGIntCopy(temp3, temp2);
+            FGIntDestroy(temp3);
+         End;
+         FGIntCopy(temp1, GCD);
+         FGIntDestroy(temp2);
+         FGIntDestroy(zero);
+      End;
+End;
+
+
+// Compute the Least Common Multiple of 2 FGInts
+
+Procedure FGIntLCM(Const FGInt1, FGInt2 : TFGInt; Var LCM : TFGInt);
+Var
+   temp1, temp2 : TFGInt;
+Begin
+   FGIntGCD(FGInt1, FGInt2, temp1);
+   FGIntmul(FGInt1, FGInt2, temp2);
+   FGIntdiv(temp2, temp1, LCM);
+   FGIntDestroy(temp1);
+   FGIntDestroy(temp2);
+End;
+
+
+// Trialdivision of a FGInt upto 9999 and stopping when a divisor is found, returning ok=false
+
+Procedure FGIntTrialDiv9999(Const FGInt : TFGInt; Var ok : boolean);
+Var
+   j : LongWord;
+   i : integer;
+Begin
+   If ((FGInt.Number[1] Mod 2) = 0) Then ok := false
+   Else
+   Begin
+      i := 0;
+      ok := true;
+      While ok And (i < 1228) Do
+      Begin
+         i := i + 1;
+         FGIntmodbyint(FGInt, primes[i], j);
+         If j = 0 Then ok := false;
+      End;
+   End;
+End;
+
+
+// A prng
+
+Procedure FGIntRandom1(Var Seed, RandomFGInt : TFGInt);
+Var
+   temp, base : TFGInt;
+Begin
+   Base10StringToFGInt('281474976710656', base);
+   Base10StringToFGInt('44485709377909', temp);
+   FGIntMulMod(seed, temp, base, RandomFGInt);
+   FGIntDestroy(temp);
+   FGIntDestroy(base);
+End;
+
+
+// Perform a Rabin Miller Primality Test nrtest times on FGIntp, returns ok=true when FGIntp passes the test
+
+Procedure FGIntRabinMiller(Var FGIntp : TFGInt; nrtest : Longword; Var ok : boolean);
+Var
+   j, b, i : LongWord;
+   m, z, temp1, temp2, temp3, zero, one, two, pmin1 : TFGInt;
+   ok1, ok2 : boolean;
+Begin
+   randomize;
+   Base10StringToFGInt('0', zero);
+   Base10StringToFGInt('1', one);
+   Base10StringToFGInt('2', two);
+   FGIntsub(FGIntp, one, temp1);
+   FGIntsub(FGIntp, one, pmin1);
+
+   b := 0;
+   While (temp1.Number[1] Mod 2) = 0 Do
+   Begin
+      b := b + 1;
+      FGIntShiftRight(temp1);
+   End;
+   m := temp1;
+
+   i := 0;
+   ok := true;
+   Randomize;
+   While (i < nrtest) And ok Do
+   Begin
+      j := 0;
+      i := i + 1;
+      Base10StringToFGInt(inttostr(Primes[Random(1227) + 1]), temp2);
+      FGIntMontGomeryModExp(temp2, m, FGIntp, z);
+      FGIntDestroy(temp2);
+      ok1 := (FGIntCompareAbs(z, one) = Eq);
+      ok2 := (FGIntCompareAbs(z, pmin1) = Eq);
+      If Not (ok1 Or ok2) Then
+      Begin
+
+         While (ok And (j < b)) Do
+         Begin
+            If (j > 0) And ok1 Then ok := false
+            Else
+            Begin
+               j := j + 1;
+               If (j < b) And (Not ok2) Then
+               Begin
+                  FGIntSquaremod(z, FGIntp, temp3);
+                  FGIntCopy(temp3, z);
+                  ok1 := (FGIntCompareAbs(z, one) = Eq);
+                  ok2 := (FGIntCompareAbs(z, pmin1) = Eq);
+                  If ok2 Then j := b;
+               End
+               Else If (Not ok2) And (j >= b) Then ok := false;
+            End;
+         End;
+
+      End
+   End;
+
+   FGIntDestroy(zero);
+   FGIntDestroy(one);
+   FGIntDestroy(two);
+   FGIntDestroy(m);
+   FGIntDestroy(z);
+   FGIntDestroy(pmin1);
+End;
+
+
+// Compute the coefficients from the Bezout Bachet theorem, FGInt1 * a + FGInt2 * b = GCD(FGInt1, FGInt2)
+
+Procedure FGIntBezoutBachet(Var FGInt1, FGInt2, a, b : TFGInt);
+Var
+   zero, r1, r2, r3, ta, gcd, temp, temp1, temp2 : TFGInt;
+Begin
+   If FGIntCompareAbs(FGInt1, FGInt2) <> St Then
+   Begin
+      FGIntcopy(FGInt1, r1);
+      FGIntcopy(FGInt2, r2);
+      Base10StringToFGInt('0', zero);
+      Base10StringToFGInt('1', a);
+      Base10StringToFGInt('0', ta);
+
+      Repeat
+         FGIntdivmod(r1, r2, temp, r3);
+         FGIntDestroy(r1);
+         r1 := r2;
+         r2 := r3;
+
+         FGIntmul(ta, temp, temp1);
+         FGIntsub(a, temp1, temp2);
+         FGIntCopy(ta, a);
+         FGIntCopy(temp2, ta);
+         FGIntDestroy(temp1);
+
+         FGIntDestroy(temp);
+      Until FGIntCompareAbs(r3, zero) = Eq;
+
+      FGIntGCD(FGInt1, FGInt2, gcd);
+      FGIntmul(a, FGInt1, temp1);
+      FGIntsub(gcd, temp1, temp2);
+      FGIntDestroy(temp1);
+      FGIntdiv(temp2, FGInt2, b);
+      FGIntDestroy(temp2);
+
+      FGIntDestroy(ta);
+      FGIntDestroy(r1);
+      FGIntDestroy(r2);
+      FGIntDestroy(gcd);
+   End
+   Else FGIntBezoutBachet(FGInt2, FGInt1, b, a);
+End;
+
+
+// Find the (multiplicative) Modular inverse of a FGInt in a finite ring
+// of additive order base
+
+Procedure FGIntModInv(Const FGInt1, base : TFGInt; Var Inverse : TFGInt);
+Var
+   zero, one, r1, r2, r3, tb, gcd, temp, temp1, temp2 : TFGInt;
+Begin
+   Base10StringToFGInt('1', one);
+   FGIntGCD(FGInt1, base, gcd);
+   If FGIntCompareAbs(one, gcd) = Eq Then
+   Begin
+      FGIntcopy(base, r1);
+      FGIntcopy(FGInt1, r2);
+      Base10StringToFGInt('0', zero);
+      Base10StringToFGInt('0', inverse);
+      Base10StringToFGInt('1', tb);
+
+      Repeat
+         FGIntDestroy(r3);
+         FGIntdivmod(r1, r2, temp, r3);
+         FGIntCopy(r2, r1);
+         FGIntCopy(r3, r2);
+
+         FGIntmul(tb, temp, temp1);
+         FGIntsub(inverse, temp1, temp2);
+         FGIntDestroy(inverse);
+         FGIntDestroy(temp1);
+         FGIntCopy(tb, inverse);
+         FGIntCopy(temp2, tb);
+
+         FGIntDestroy(temp);
+      Until FGIntCompareAbs(r3, zero) = Eq;
+
+      If inverse.Sign = negative Then
+      Begin
+         FGIntadd(base, inverse, temp);
+         FGIntCopy(temp, inverse);
+      End;
+
+      FGIntDestroy(tb);
+      FGIntDestroy(r1);
+      FGIntDestroy(r2);
+   End;
+   FGIntDestroy(gcd);
+   FGIntDestroy(one);
+End;
+
+
+// Perform a (combined) primality test on FGIntp consisting of a trialdivision upto 8192,
+// if the FGInt passes perform nrRMtests Rabin Miller primality tests, returns ok when a
+// FGInt is probably prime
+
+Procedure FGIntPrimetest(Var FGIntp : TFGInt; nrRMtests : integer; Var ok : boolean);
+Begin
+   FGIntTrialdiv9999(FGIntp, ok);
+   If ok Then FGIntRabinMiller(FGIntp, nrRMtests, ok);
+End;
+
+
+// Computes the Legendre symbol for a any number and
+// p a prime, returns 0 if p divides a, 1 if a is a
+// quadratic residu mod p, -1 if a is a quadratic
+// nonresidu mod p
+
+Procedure FGIntLegendreSymbol(Var a, p : TFGInt; Var L : integer);
+Var
+   temp1, temp2, temp3, temp4, temp5, zero, one : TFGInt;
+   i : LongWord;
+   ok1, ok2 : boolean;
+Begin
+   Base10StringToFGInt('0', zero);
+   Base10StringToFGInt('1', one);
+   FGIntMod(a, p, temp1);
+   If FGIntCompareAbs(zero, temp1) = Eq Then
+   Begin
+      FGIntDestroy(temp1);
+      L := 0;
+   End
+   Else
+   Begin
+      FGIntDestroy(temp1);
+      FGIntCopy(p, temp1);
+      FGIntCopy(a, temp2);
+      L := 1;
+      While FGIntCompareAbs(temp2, one) <> Eq Do
+      Begin
+         If (temp2.Number[1] Mod 2) = 0 Then
+         Begin
+            FGIntSquare(temp1, temp3);
+            FGIntSub(temp3, one, temp4);
+            FGIntDestroy(temp3);
+            FGIntDivByInt(temp4, temp3, 8, i);
+            If (temp3.Number[1] Mod 2) = 0 Then ok1 := false Else ok1 := true;
+            FGIntDestroy(temp3);
+            FGIntDestroy(temp4);
+            If ok1 = true Then L := L * (-1);
+            FGIntDivByIntBis(temp2, 2, i);
+         End
+         Else
+         Begin
+            FGIntSub(temp1, one, temp3);
+            FGIntSub(temp2, one, temp4);
+            FGIntMul(temp3, temp4, temp5);
+            FGIntDestroy(temp3);
+            FGIntDestroy(temp4);
+            FGIntDivByInt(temp5, temp3, 4, i);
+            If (temp3.Number[1] Mod 2) = 0 Then ok2 := false Else ok2 := true;
+            FGIntDestroy(temp5);
+            FGIntDestroy(temp3);
+            If ok2 = true Then L := L * (-1);
+            FGIntMod(temp1, temp2, temp3);
+            FGIntCopy(temp2, temp1);
+            FGIntCopy(temp3, temp2);
+         End;
+      End;
+      FGIntDestroy(temp1);
+      FGIntDestroy(temp2);
+   End;
+   FGIntDestroy(zero);
+   FGIntDestroy(one);
+End;
+
+
+// Compute a square root modulo a prime number
+// SquareRoot^2 mod Prime = Square
+
+Procedure FGIntSquareRootModP(Square, Prime : TFGInt; Var SquareRoot : TFGInt);
+Var
+   one, n, b, s, r, temp, temp1, temp2, temp3 : TFGInt;
+   a, i, j : longint;
+   L : Integer;
+Begin
+   Base2StringToFGInt('1', one);
+   Base2StringToFGInt('10', n);
+   a := 0;
+   FGIntLegendreSymbol(n, Prime, L);
+   While L <> -1 Do
+   Begin
+      FGIntAddBis(n, one);
+      FGIntLegendreSymbol(n, Prime, L);
+   End;
+   FGIntCopy(Prime, s);
+   s.Number[1] := s.Number[1] - 1;
+   While (s.Number[1] Mod 2) = 0 Do
+   Begin
+      FGIntShiftRight(s);
+      a := a + 1;
+   End;
+   FGIntMontgomeryModExp(n, s, Prime, b);
+   FGIntAdd(s, one, temp);
+   FGIntShiftRight(temp);
+   FGIntMontgomeryModExp(Square, temp, Prime, r);
+   FGIntDestroy(temp);
+   FGIntModInv(Square, Prime, temp1);
+
+   For i := 0 To (a - 2) Do
+   Begin
+      FGIntSquareMod(r, Prime, temp2);
+      FGIntMulMod(temp1, temp2, Prime, temp);
+      FGIntDestroy(temp2);
+      For j := 1 To (a - i - 2) Do
+      Begin
+         FGIntSquareMod(temp, Prime, temp2);
+         FGIntDestroy(temp);
+         FGIntCopy(temp2, temp);
+         FGIntDestroy(temp2);
+      End;
+      If FGIntCompareAbs(temp, one) <> Eq Then
+      Begin
+         FGIntMulMod(r, b, Prime, temp3);
+         FGIntDestroy(r);
+         FGIntCopy(temp3, r);
+         FGIntDestroy(temp3);
+      End;
+      FGIntDestroy(temp);
+      FGIntDestroy(temp2);
+      If i = (a - 2) Then break;
+      FGIntSquareMod(b, Prime, temp3);
+      FGIntDestroy(b);
+      FGIntCopy(temp3, b);
+      FGIntDestroy(temp3);
+   End;
+
+   FGIntCopy(r, SquareRoot);
+   FGIntDestroy(r);
+   FGIntDestroy(s);
+   FGIntDestroy(b);
+   FGIntDestroy(temp1);
+   FGIntDestroy(one);
+   FGIntDestroy(n);
+End;
+
+
 
 End.
