@@ -44,20 +44,29 @@ Procedure FGIntDestroy(Var FGInt : TFGInt);
 Procedure FGIntCopy(Const FGInt1 : TFGInt; Var FGInt2 : TFGInt);
 Function FGIntCompareAbs(Const FGInt1, FGInt2 : TFGInt) : TCompare;
 Procedure FGIntAbs(Var FGInt : TFGInt);
+Procedure FGIntShiftLeft(Var FGInt : TFGInt);
 Procedure FGIntShiftLeftBy32(Var FGInt : TFGInt);
 Procedure FGIntShiftRight(Var FGInt : TFGInt);
 Procedure FGIntShiftRightBy32(Var FGInt : TFGInt);
 Procedure FGIntShiftLeftBy32Times(Var FGInt : TFGInt; times : LongWord);
 Procedure FGIntShiftRightBy32Times(Var FGInt : TFGInt; times : LongWord);
+Procedure FGIntShiftLeftBy(Var FGInt : TFGInt; by : LongWord);
+Procedure FGIntShiftRightBy(Var FGInt : TFGInt; by : LongWord);
 Procedure FGIntToBase2String(Const FGInt : TFGInt; Var S : String);
 Procedure Base2StringToFGInt(S : String; Var FGInt : TFGInt);
 Procedure Base10StringToFGInt(Base10 : String; Var FGInt : TFGInt);
 Procedure FGIntToBase10String(Const FGInt : TFGInt; Var Base10 : String);
+Procedure FGIntToBase256String(Const FGInt : TFGInt; Var str256 : String);
+Procedure Base256StringToFGInt(str256 : String; Var FGInt : TFGInt);
+Procedure ConvertBase256StringToHexString(Str256 : String; Var HexStr : String);
+Procedure ConvertHexStringToBase256String(HexStr : String; Var Str256 : String);
+Procedure PGPMPIToFGInt(PGPMPI : String; Var FGInt : TFGInt);
+Procedure FGIntToPGPMPI(FGInt : TFGInt; Var PGPMPI : String);
 
 Procedure FGIntDivByIntBis(Var FGInt : TFGInt; by : LongWord; Var modres : LongWord);
 Procedure FGIntAdd(Const FGInt1, FGInt2 : TFGInt; Var Sum : TFGInt);
 Procedure FGIntChangeSign(Var FGInt : TFGInt);
-Procedure FGIntSub(Var FGInt1, FGInt2, dif : TFGInt);
+Procedure FGIntSub(Const FGInt1 : TFGInt; Var FGInt2, dif : TFGInt);
 Procedure FGIntAddBis(Var FGInt1 : TFGInt; Const FGInt2 : TFGInt);
 Procedure FGIntSubBis(Var FGInt1 : TFGInt; Const FGInt2 : TFGInt);
 Procedure FGIntPencilPaperMultiply(Const FGInt1, FGInt2 : TFGInt; Var Prod : TFGInt);
@@ -82,8 +91,6 @@ Procedure FGIntSquareMod(Var FGInt, Modb, FGIntSM : TFGInt);
 Procedure FGIntAddMod(Var FGInt1, FGInt2, base, FGIntres : TFGInt);
 Procedure FGIntMulMod(Var FGInt1, FGInt2, base, FGIntres : TFGInt);
 
-
-
 Procedure FGIntModBis(Const FGInt : TFGInt; Var FGIntOut : TFGInt; b, head : LongWord);
 Procedure FGIntMulModBis(Const FGInt1, FGInt2 : TFGInt; Var Prod : TFGInt; b, head : LongWord);
 Procedure FGIntMontgomeryModExp(Var FGInt, exp, modb, res : TFGInt);
@@ -98,6 +105,15 @@ Procedure FGIntModInv(Const FGInt1, base : TFGInt; Var Inverse : TFGInt);
 Procedure FGIntPrimetest(Var FGIntp : TFGInt; nrRMtests : integer; Var ok : boolean);
 Procedure FGIntLegendreSymbol(Var a, p : TFGInt; Var L : integer);
 Procedure FGIntSquareRootModP(Square, Prime : TFGInt; Var SquareRoot : TFGInt);
+
+
+Procedure newtonInitialValue(Const FGInt : TFGInt; Const kZero: LongWord; Var resFGInt : TFGInt);
+Procedure newtonInversion(Const fGInt : TFGInt; Const precision : LongWord; Var resFGInt : TFGInt);
+Procedure FGIntBarretDivMod(Var FGInt1, FGInt2, QFGInt, MFGInt : TFGInt);
+Procedure FGIntBarretMod(Var FGInt1, FGInt2, MFGInt : TFGInt);
+Procedure FGIntBarrettModWithInvertedDivisorAndPrecision(Const GInt, divisorFGInt, invertedDivisor : TFGInt; precision : LongWord; Var modFGInt : TFGInt);
+// Procedure FGIntBarrettModWithInvertedDivisorAndPrecisionBis(Const fGInt, divisorFGInt, invertedDivisor : TFGInt; precision : LongWord; Var modFGInt : TFGInt);
+Procedure FGIntBarretModExp(Var FGInt, exp, modFGInt, res : TFGInt);
 
 
 
@@ -238,15 +254,16 @@ End;
 
 Procedure FGIntShiftLeft(Var FGInt : TFGInt);
 Var
-   l, m, i, size : LongWord;
+   i, size : LongWord;
+   m, l: uint64;
 Begin
    size := FGInt.Number[0];
    l := 0;
    For i := 1 To Size Do
    Begin
-      m := FGInt.Number[i] Shr 31;
-      FGInt.Number[i] := ((FGInt.Number[i] Shl 1) Or l) And 4294967295;
-      l := m;
+      m := FGInt.Number[i];
+      FGInt.Number[i] := ((m Shl 1) Or l) And 4294967295;
+      l := m shr 31;
    End;
    If l <> 0 Then
    Begin
@@ -363,6 +380,59 @@ Begin
       FGInt.Number[0] := size - times;
       SetLength(FGInt.Number, size + 1 - times);
    end;
+End;
+
+
+Procedure FGIntShiftLeftBy(Var FGInt : TFGInt; by : LongWord);
+Var
+   i, size, m32Shift : LongWord;
+Begin
+   if by = 0 then Exit;
+
+   m32Shift := by mod 32;
+   size := FGInt.Number[0];
+   if (not ((size = 1) and (FGInt.Number[1] = 0))) and (m32Shift <> 0) then
+   begin
+      if ((FGInt.Number[size] shr (32 - m32Shift)) > 0) then 
+      begin
+         SetLength(FGInt.Number, size + 2);
+         FGInt.Number[0] := size + 1;
+         FGInt.Number[size + 1] := 0;
+         size := size + 1;
+      end;
+      For i := size - 1 Downto 1 Do
+      Begin
+         FGInt.Number[i + 1] := (FGInt.Number[i + 1] shl m32Shift) or (FGInt.Number[i] shr (32 - m32Shift));
+      End;
+         FGInt.Number[1] := (FGInt.Number[1] shl m32Shift);
+   end;
+   if (by div 32) > 0 then
+      FGIntShiftLeftBy32Times(FGInt, by div 32);
+End;
+
+Procedure FGIntShiftRightBy(Var FGInt : TFGInt; by : LongWord);
+Var
+   i, size, shift : LongWord;
+Begin
+   if by = 0 then Exit;
+   if (by div 32) > 0 then
+      FGIntShiftRightBy32Times(FGInt, by div 32);
+   shift := by mod 32;
+   size := FGInt.Number[0];
+   if (not ((FGInt.Number[0] = 1) and (FGInt.Number[1] = 0))) and (shift > 0) then
+   begin
+      For i := 1 to size - 1 Do
+      Begin
+         FGInt.Number[i] := (FGInt.Number[i] shr shift) or (FGInt.Number[i + 1] shl (32 - shift));
+      End;
+      FGInt.Number[size] := (FGInt.Number[size] shr shift);
+      if FGInt.Number[size] = 0 then 
+      begin
+         SetLength(FGInt.Number, size);
+         FGInt.Number[0] := size - 1;
+      end;
+   end;
+
 End;
 
 
@@ -519,6 +589,121 @@ Begin
 End;
 
 
+
+// Convert a FGInt to an base 256 string & visa versa
+
+Procedure FGIntToBase256String(Const FGInt : TFGInt; Var str256 : String);
+Var
+   i, j : LongWord;
+   b : byte;
+Begin
+   str256 := '';
+   For i := 1 To FGInt.Number[0] Do
+   Begin
+      for j := 0 to 3 do
+      begin
+         b := (FGInt.Number[i] shr (j * 8)) and 255;
+         str256 := chr(b) + str256;
+      end;
+   End;
+End;
+
+
+Procedure Base256StringToFGInt(str256 : String; Var FGInt : TFGInt);
+Var
+   temp : String;
+   i, l, j : LongWord;
+Begin
+   temp := str256;
+   while length(temp) mod 4 <> 0 do temp := chr(0) + temp;
+   l := length(temp) div 4;
+   FGInt.sign := positive;
+   setLength(FGInt.Number, l + 1);
+   FGInt.Number[0] := l;
+   For i := 1 To l Do 
+   begin
+      j := 4 * (i - 1);
+      FGInt.Number[l - i + 1] := ord(temp[j + 1]);
+      FGInt.Number[l - i + 1] := (FGInt.Number[l - i + 1] shl 8) or ord(temp[j + 2]);
+      FGInt.Number[l - i + 1] := (FGInt.Number[l - i + 1] shl 8) or ord(temp[j + 3]);
+      FGInt.Number[l - i + 1] := (FGInt.Number[l - i + 1] shl 8) or ord(temp[j + 4]);
+   end;
+End;
+
+
+// Convert base 256 strings to base 16 (HexaDecimal) strings and visa versa
+
+Procedure ConvertBase256StringToHexString(Str256 : String; Var HexStr : String);
+Var
+   i : longint;
+   b : byte;
+Begin
+   HexStr := '';
+   For i := 1 To length(str256) Do
+   Begin
+      b := ord(str256[i]);
+      If (b Shr 4) < 10 Then HexStr := HexStr + chr(48 + (b Shr 4))
+      Else HexStr := HexStr + chr(55 + (b Shr 4));
+      If (b And 15) < 10 Then HexStr := HexStr + chr(48 + (b And 15))
+      Else HexStr := HexStr + chr(55 + (b And 15));
+   End;
+End;
+
+
+Procedure ConvertHexStringToBase256String(HexStr : String; Var Str256 : String);
+Var
+   i : longint;
+   b, h1, h2 : byte;
+   temp : string;
+Begin
+   Str256 := '';
+   If (length(Hexstr) mod 2) = 1 Then temp := '0' + HexStr Else temp := HexStr;
+   For i := 1 To (length(temp) Div 2) Do
+   Begin
+      h2 := ord(temp[2 * i]);
+      h1 := ord(temp[2 * i - 1]);
+      If h1 < 58 Then
+         b := ((h1 - 48) Shl 4)
+      Else
+         b := ((h1 - 55) Shl 4);
+      If h2 < 58 Then
+         b := (b Or (h2 - 48))
+      Else
+         b := (b Or ((h2 - 55) and 15));
+      Str256 := Str256 + chr(b);
+   End;
+End;
+
+
+// Convert an MPI (Multiple Precision Integer, PGP style) to an FGInt &
+// visa versa
+
+Procedure PGPMPIToFGInt(PGPMPI : String; Var FGInt : TFGInt);
+Var
+   temp : String;
+Begin
+   temp := PGPMPI;
+   delete(temp, 1, 2);
+   Base256StringToFGInt(temp, FGInt);
+End;
+
+
+Procedure FGIntToPGPMPI(FGInt : TFGInt; Var PGPMPI : String);
+Var
+   len, i : word;
+   c : char;
+   b : byte;
+Begin
+   FGIntToBase256String(FGInt, PGPMPI);
+   len := length(PGPMPI) * 8;
+   c := PGPMPI[1];
+   For i := 7 Downto 0 Do If (ord(c) Shr i) = 0 Then len := len - 1 Else break;
+   b := len Mod 256;
+   PGPMPI := chr(b) + PGPMPI;
+   b := len Div 256;
+   PGPMPI := chr(b) + PGPMPI;
+End;
+
 // divide a FGInt by an integer, FGInt = FGInt * by + modres
 
 Procedure FGIntDivByIntBis(Var FGInt : TFGInt; by : LongWord; Var modres : LongWord);
@@ -639,7 +824,7 @@ End;
 
 // Substract 2 FGInts, FGInt1 - FGInt2 = dif
 
-Procedure FGIntSub(Var FGInt1, FGInt2, dif : TFGInt);
+Procedure FGIntSub(Const FGInt1 : TFGInt; Var FGInt2, dif : TFGInt);
 Begin
    FGIntChangeSign(FGInt2);
    FGIntAdd(FGInt1, FGInt2, dif);
@@ -763,7 +948,7 @@ Begin
          Trest := Trest * FGInt2.Number[i];
          Trest := Trest + Prod.Number[j + i - 1];
          Trest := Trest + rest;
-         Prod.Number[j + i - 1] := Trest And 4294967295;
+         Prod.Number[j + i - 1] := Trest;
          rest := Trest Shr 32;
       End;
       Prod.Number[i + size1] := rest;
@@ -911,8 +1096,8 @@ End;
 
 Procedure FGIntPencilPaperSquare(Const FGInt : TFGInt; Var Square : TFGInt);
 Var
-   size, size1, i, j, rest : LongWord;
-   Trest, overflow : uint64;
+   size, size1, i, j, k : LongWord;
+   Trest, overflow, rest, tmpInt : uint64;
 Begin
    size1 := FGInt.Number[0];
    size := 2 * size1;
@@ -922,22 +1107,29 @@ Begin
       Square.Number[i] := 0;
    For i := 1 To size1 Do
    Begin
-      Trest := FGInt.Number[i];
-      Trest := Trest * FGInt.Number[i];
+      tmpInt := FGInt.Number[i];
+      Trest := tmpInt * tmpInt;
       Trest := Trest + Square.Number[2 * i - 1];
       Square.Number[2 * i - 1] := Trest And 4294967295;
       rest := Trest Shr 32;
       For j := i + 1 To size1 Do
       Begin
-         overflow := 0;
-         Trest := FGInt.Number[i];
-         Trest := Trest * FGInt.Number[j];
-         if Trest shr 63 = 1 then overflow := 1 shl 32;
-         Trest := (Trest Shl 1) + Square.Number[i + j - 1] + overflow + rest;
+         Trest := FGInt.Number[j];
+         Trest := Trest * tmpInt;
+         if (Trest shr 63) = 1 then overflow := 1 else overflow := 0;
+         Trest := (Trest Shl 1) + Square.Number[i + j - 1] + rest;
          Square.Number[i + j - 1] := Trest And 4294967295;
-         rest := Trest Shr 32;
+         rest := (Trest Shr 32) or (overflow shl 32);
       End;
-      Square.Number[i + size1] := rest;
+      k := 0;
+      while rest <> 0 do
+      begin
+         Trest := square.Number[i + size1 + k];
+         Trest := Trest + rest;
+         square.Number[i + size1 + k] := Trest And 4294967295;
+         rest := Trest shr 32;
+         k := k + 1;
+      end;
    End;
    Square.Sign := positive;
    While (Square.Number[size] = 0) And (size > 1) Do
@@ -2204,6 +2396,560 @@ Begin
    FGIntDestroy(n);
 End;
 
+
+
+
+
+
+// compute the initial bits for newton inversion with kZero fraction digits 
+
+Procedure newtonInitialValue(Const FGInt : TFGInt; Const kZero: LongWord; Var resFGInt : TFGInt);
+Var
+    tmpFGInt, bFGInt : TFGInt;
+    isTwo, i, j, l : LongWord;
+    k, divisorLength, tmpFGIntHead1, tmpFGIntHead2, bFGIntLength, divInt : uint64;
+Begin
+   isTwo := 0;
+   divisorLength := FGInt.Number[0];
+
+   k := divisorLength;
+   for i := 1 to divisorLength do
+   begin
+      if FGInt.Number[i] <> 0 then 
+         for l := 0 to 31 do
+            if (FGInt.Number[i] and (1 shl l)) <> 0 then isTwo := isTwo + 1;
+   end;
+
+   if (isTwo <> 1)  then
+   Begin
+      j := kZero div 32;
+      if kZero mod 32 <> 0 then j := j + 1;
+      k := divisorLength + j;
+
+      bFGInt.sign := positive;
+      setlength(bFGInt.Number, k + 2);
+      For i := 1 to k do
+         bFGInt.Number[i] := 0;
+      bFGInt.Number[k+1] := 1;
+      bFGInt.Number[0] := k + 1;
+
+      if bFGInt.Number[0] + 1 > divisorLength then j := bFGInt.Number[0] - divisorLength + 1 else j := 0;
+      FGIntCopy(fGInt, tmpFGInt);
+      if (j > 0) then
+         FGIntShiftLeftBy32Times(tmpFGInt, j - 1);
+
+      resFGInt.sign := positive;
+      setlength(resFGInt.Number, j + 1);
+      For i := 1 to j do
+         resFGInt.Number[i] := 0;
+      resFGInt.Number[0] := j;
+
+      tmpFGIntHead1 := tmpFGInt.Number[tmpFGInt.Number[0]];
+      tmpFGIntHead1 := tmpFGIntHead1 + 1;
+      if tmpFGInt.Number[0] > 1 then
+      begin
+         tmpFGIntHead2 := tmpFGInt.Number[tmpFGInt.Number[0]];
+         tmpFGIntHead2 := (tmpFGIntHead2 shl 32) + tmpFGInt.Number[tmpFGInt.Number[0] - 1] + 1;
+      end else
+      begin
+         tmpFGIntHead2 := 0;
+      end;
+      bFGIntLength := bFGInt.Number[0];
+
+      while FGIntCompareAbs(bFGInt, fGInt) <> St do 
+      begin
+         while FGIntCompareAbs(bFGInt, tmpFGInt) <> St do 
+         begin
+            if bFGIntLength > tmpFGInt.Number[0] then
+            begin
+               divInt := bFGInt.Number[bFGInt.Number[0]];
+               divInt := ((divInt shl 32) + bFGInt.Number[bFGInt.Number[0] - 1]) div tmpFGIntHead1;
+            end else
+            begin
+               if (bFGIntLength > 1) and (tmpFGIntHead2 <> 0) then
+               begin
+                  divInt := bFGInt.Number[bFGInt.Number[0]];
+                  divInt := ((divInt shl 32) + bFGInt.Number[bFGInt.Number[0] - 1] ) div tmpFGIntHead2;
+               end else
+               begin
+                  divInt := bFGInt.Number[bFGInt.Number[0]];
+                  divInt := divInt div tmpFGIntHead1;
+               end
+            end;
+            if divInt <> 0 then
+            begin
+               FGIntMulByIntSubBis(bFGInt, tmpFGInt, divInt);
+               resFGInt.Number[j] := resFGInt.Number[j] + divInt;
+            end else
+            begin
+               FGIntSubBis(bFGInt, tmpFGInt);
+               resFGInt.Number[j] := resFGInt.Number[j] + 1;
+            end;
+            bFGIntLength := bFGInt.Number[0];
+         end;
+         if (bFGIntLength <= tmpFGInt.Number[0]) and (tmpFGInt.Number[0] > divisorLength) then
+         begin
+            FGIntShiftRightBy32(tmpFGInt);
+            j := j - 1;
+         end;
+      end;
+
+
+
+      while (resFGInt.Number[0] > 1) and (resFGInt.Number[resFGInt.Number[0]] = 0) do
+      begin
+         setLength(resFGInt.Number, resFGInt.Number[0]);
+         resFGInt.Number[0] := resFGInt.Number[0] - 1;
+      end;
+      j := kZero + 1; 
+      i := 32 * (resFGInt.Number[0] - 1);
+      while (resFGInt.Number[resFGInt.Number[0]] shr i) <> 0 do  
+         i := i + 1;
+
+// writeln(' - divInt - ' + inttostr(divInt));
+
+      if (i > j) then
+         FGIntShiftRightBy(resFGInt, i - j)
+      else 
+         FGIntShiftLeftBy(resFGInt, j - i);
+
+         FGIntDestroy(bFGInt);
+         FGIntDestroy(tmpFGInt);
+
+   end else
+   Begin
+      Base2StringToFGInt('10', resFGInt);
+      FGIntShiftLeftBy(resFGInt, kZero);
+   End;
+End;
+
+
+//  newtonInversion returns the 1/fGInt with precision fraction digits 
+
+Procedure newtonInversion(Const fGInt : TFGInt; Const precision : LongWord; Var resFGInt : TFGInt);
+Var 
+   z, zSquare, vFGInt, t_FGInt, uFGInt : TFGInt;
+   h, j, k, baseCaseLength, vLength, uRadix,
+           zRadix, zSquareRadix, tRadix, vIndex : uint64;
+   kValues : Array of LongWord;    
+   i : LongWord;  
+Begin
+   baseCaseLength := 128;
+   k := precision;
+
+   FGIntCopy(fGInt, vFGInt);
+   vLength := vFGInt.Number[0];
+   i := 0;
+   while (vFGInt.Number[vLength] < (2147483648 shr i)) do i := i + 1;
+   FGIntShiftLeftBy(vFGInt, i);
+   
+   j := k;
+   i := 0;
+   setlength(kValues, 0);
+   while (k > baseCaseLength) do
+   begin
+      k := (j div 2) + (j mod 2);
+      j := k;
+      setlength(kValues, length(kValues) + 1);
+      kValues[i] := k;
+      i := i + 1;
+   end;
+   newtonInitialValue(vFGInt, k, z);
+   zRadix := k;
+   vIndex := vLength;
+   tRadix := 0;
+   setLength(t_FGInt.Number, 0);
+
+   for i := length(kValues) - 1 Downto 0 do 
+   begin
+      k := kValues[i];
+      FGIntSquare(z, zSquare);
+      zSquareRadix := 2 * zRadix;
+
+//////////////////// ToDo: optimize!!!!!!!!!!!!!!!!!!!!!!!!!
+      // h := (2*k + 3 - tRadix) div 32;
+      // if (2*k + 3 - tRadix) mod 32 <> 0 then h := h + 1;
+
+      while tRadix < (2 * k + 3) do 
+      begin
+         if (vIndex > 0) then
+         begin
+            if length(t_FGInt.Number) = 0 then Base2StringToFGInt('0', t_FGInt) else FGIntShiftLeftBy32(t_FGInt);
+            t_FGInt.Number[1] := vFGInt.Number[vIndex];
+         end else
+         begin
+            FGIntShiftLeftBy32(t_FGInt);
+         end;
+         vIndex := vIndex - 1;
+         tRadix := tRadix + 32;
+      end;
+      t_FGInt.Number[0] := tRadix div 32;
+      h := tRadix - 2*k - 3;
+      FGIntMul(t_FGInt, zSquare, uFGInt);
+      FGIntDestroy(zSquare);
+      uRadix := tRadix + zSquareRadix;
+      if (uRadix > 2*k + 1 + h) then
+      begin
+         FGIntShiftRightBy(uFGInt, uRadix - (2*k + 1 + h));
+         uRadix := 2*k + 1 + h;
+      end;
+      FGIntShiftLeft(z);
+
+
+      if (uRadix > zRadix) then
+      begin
+         FGIntShiftLeftBy(z, uRadix - zRadix);
+         zRadix := uRadix;
+      end;
+      FGIntSubBis(z, uFGInt);
+      FGIntDestroy(uFGInt);
+   end;
+
+    if (zRadix > precision) then FGIntShiftRightBy(z, zRadix - precision);
+    FGIntAbs(z);
+
+    kValues := nil;
+    FGIntDestroy(t_FGInt);
+    FGIntDestroy(vFGInt);
+    resFGInt := z;
+End;
+
+
+
+Procedure FGIntBarretDivMod(Var FGInt1, FGInt2, QFGInt, MFGInt : TFGInt);
+Var
+   fGInt1Copy, divisorCopy, tmpFGInt, one, invertedDivisor : TFGInt;
+   i, m, n : Longword;
+   mnCorrect : boolean;
+   fGIntSign, divisorSign : TSign;
+begin
+   m := (fGInt1.Number[0] - 1) * 32;
+   n := (fGInt2.Number[0] - 1) * 32;
+   mnCorrect := false;
+   fGIntSign := fGInt1.sign;
+   divisorSign := fGInt2.sign;
+
+   if FGIntCompareAbs(fGInt1, fGInt2) <> St then
+   begin
+      FGIntAbs(fGInt1);
+      FGIntAbs(fGInt2);
+      for i := 0 to 31 do
+         if (fGInt1.Number[fGInt1.Number[0]] shr i) = 0 then break else m := m + 1;
+      for i := 0 to 31 do
+         if (fGInt2.Number[fGInt2.Number[0]] shr i) = 0 then break else n := n + 1;
+
+      if (m > 2 * n) then
+      begin
+         mnCorrect := True;
+         FGIntCopy(fGInt1, fGInt1Copy);
+         FGIntCopy(fGInt2, divisorCopy);
+      end;
+
+      while (m > 2*n) do
+      begin
+         if (m >= 2*n + 32) then 
+         begin
+            FGIntShiftLeftBy32(fGInt1);
+            FGIntShiftLeftBy32(fGInt2);
+            m := m + 32;
+            n := n + 32;
+         end else
+         begin
+            FGIntShiftLeft(fGInt1);
+            FGIntShiftLeft(fGInt2);
+            m := m + 1;
+            n := n + 1;
+         end;
+      end;
+      newtonInversion(fGInt2, m - n, invertedDivisor);
+      FGIntCopy(fGInt1, tmpFGInt);
+      
+      i := n - 1;
+      if i > 0 then FGIntShiftRightBy(tmpFGInt, i);
+
+      FGIntMul(tmpFGInt, invertedDivisor, QFGInt);
+      FGIntDestroy(tmpFGInt);
+
+      i := m - n + 1;
+      if (i > 0) then FGIntShiftRightBy(QFGInt, i);
+
+      if (mnCorrect) then
+      begin
+         fGInt1 := fGInt1Copy;
+         fGInt2 := divisorCopy;
+      end;
+
+      FGIntMul(fGInt2, QFGInt, tmpFGInt);
+      FGIntSub(fGInt1, tmpFGInt, MFGInt);
+      FGIntDestroy(tmpFGInt);
+
+      Base2StringToFGInt('1', one);
+
+      while not ((MFGInt.sign = positive) and (FGIntCompareAbs(MFGInt, fGInt2) = St)) do
+      begin
+         if (MFGInt.sign = negative) then
+         begin
+            FGIntAdd(MFGInt, fGInt2, tmpFGInt);
+            FGIntDestroy(MFGInt);
+            MFGInt := tmpFGInt;
+            FGIntSubBis(QFGInt, one);
+         end else 
+         begin
+            FGIntSubBis(MFGInt, fGInt2);
+            FGIntAddBis(QFGInt, one);
+         end;
+      end;
+
+      if (fGInt1.Sign = negative) then
+      begin
+         FGIntSub(fGInt2, MFGInt, tmpFGInt);
+         FGIntDestroy(MFGInt);
+         MFGInt := tmpFGInt;
+         FGIntAddBis(QFGInt, one);
+      end;
+      if fGIntSign = divisorSign then QFGInt.sign := positive else QFGInt.sign := negative;
+
+      FGIntDestroy(invertedDivisor);
+      FGIntDestroy(one);
+   end else
+   begin
+      if (fGInt1.sign = positive) then
+      begin
+         Base2StringToFGInt('0', QFGInt);
+         FGIntCopy(fGInt1, MFGInt);
+      end else 
+      begin
+         if (fGInt2.sign = positive) then
+         begin
+            Base2StringToFGInt('1', QFGInt);
+            QFGInt.sign := negative;
+         end else
+            Base2StringToFGInt('1', QFGInt);
+
+         FGIntCopy(fGInt2, MFGInt);
+         FGIntAbs(MFGInt);
+         FGIntSubBis(MFGInt, fGInt1);
+      end;
+   end;
+end;
+
+
+
+
+Procedure FGIntBarretMod(Var FGInt1, FGInt2, MFGInt : TFGInt);
+Var
+   fGInt1Copy, divisorCopy, tmpFGInt, one, invertedDivisor, QFGInt : TFGInt;
+   i, m, n : Longword;
+   mnCorrect : boolean;
+begin
+   m := (fGInt1.Number[0] - 1) * 32;
+   n := (fGInt2.Number[0] - 1) * 32;
+   mnCorrect := false;
+
+   if FGIntCompareAbs(fGInt1, fGInt2) <> St then
+   begin
+      FGIntAbs(fGInt1);
+      FGIntAbs(fGInt2);
+      for i := 0 to 31 do
+         if (fGInt1.Number[fGInt1.Number[0]] shr i) = 0 then break else m := m + 1;
+      for i := 0 to 31 do
+         if (fGInt2.Number[fGInt2.Number[0]] shr i) = 0 then break else n := n + 1;
+
+      if (m > 2 * n) then
+      begin
+         mnCorrect := True;
+         FGIntCopy(fGInt1, fGInt1Copy);
+         FGIntCopy(fGInt2, divisorCopy);
+      end;
+
+      while (m > 2*n) do
+      begin
+         if (m >= 2*n + 32) then 
+         begin
+            FGIntShiftLeftBy32(fGInt1);
+            FGIntShiftLeftBy32(fGInt2);
+            m := m + 32;
+            n := n + 32;
+         end else
+         begin
+            FGIntShiftLeft(fGInt1);
+            FGIntShiftLeft(fGInt2);
+            m := m + 1;
+            n := n + 1;
+         end;
+      end;
+      newtonInversion(fGInt2, m - n, invertedDivisor);
+      FGIntCopy(fGInt1, tmpFGInt);
+      
+      i := n - 1;
+      if i > 0 then FGIntShiftRightBy(tmpFGInt, i);
+
+      FGIntMul(tmpFGInt, invertedDivisor, QFGInt);
+      FGIntDestroy(tmpFGInt);
+
+      i := m - n + 1;
+      if (i > 0) then FGIntShiftRightBy(QFGInt, i);
+
+      if (mnCorrect) then
+      begin
+         fGInt1 := fGInt1Copy;
+         fGInt2 := divisorCopy;
+      end;
+
+      FGIntMul(fGInt2, QFGInt, tmpFGInt);
+      FGIntSub(fGInt1, tmpFGInt, MFGInt);
+      FGIntDestroy(tmpFGInt);
+
+      Base2StringToFGInt('1', one);
+
+      while not ((MFGInt.sign = positive) and (FGIntCompareAbs(MFGInt, fGInt2) = St)) do
+      begin
+         if (MFGInt.sign = negative) then
+         begin
+            FGIntAdd(MFGInt, fGInt2, tmpFGInt);
+            FGIntDestroy(MFGInt);
+            MFGInt := tmpFGInt;
+         end else 
+         begin
+            FGIntSubBis(MFGInt, fGInt2);
+         end;
+      end;
+
+      if (fGInt1.Sign = negative) then
+      begin
+         FGIntSub(fGInt2, MFGInt, tmpFGInt);
+         FGIntDestroy(MFGInt);
+         MFGInt := tmpFGInt;
+      end;
+
+      FGIntDestroy(QFGInt);
+      FGIntDestroy(invertedDivisor);
+      FGIntDestroy(one);
+   end else
+   begin
+      if (fGInt1.sign = positive) then
+      begin
+         FGIntCopy(fGInt1, MFGInt);
+      end else 
+      begin
+         FGIntCopy(fGInt2, MFGInt);
+         FGIntAbs(MFGInt);
+         FGIntSubBis(MFGInt, fGInt1);
+      end;
+   end;
+end;
+
+
+
+
+
+
+
+  // barrettMod expects fGInt to contain not more than double the amount of significant bits of divisorFGInt,
+  //   invertedDivisor has double the amount of significant bits of divisorFGInt as fraction bits.
+  //   barrettMod expects all arguments to be positive.
+
+
+Procedure FGIntBarrettModWithInvertedDivisorAndPrecision(Const GInt, divisorFGInt, invertedDivisor : TFGInt; precision : LongWord; Var modFGInt : TFGInt);
+Var
+   QFGInt, tmpFGInt : TFGInt;
+   i, j : LongWord;
+   str : string;
+begin
+   if FGIntCompareAbs(GInt, divisorFGInt) <> St then
+   begin
+      i := precision - 1;
+      j := (i div 32);
+      tmpFGInt.sign := GInt.sign;
+      if (j > 0) and (j < GInt.Number[0]) then tmpFGInt.Number := copy(GInt.Number, j, GInt.Number[0] - j + 1);
+      tmpFGInt.Number[0] := GInt.Number[0] - j;
+      j := i mod 32;
+      if (j > 0) then FGIntShiftRightBy(tmpFGInt, j);
+      FGIntMul(tmpFGInt, invertedDivisor, QFGInt);
+      FGIntDestroy(tmpFGInt);
+      i := precision + 1;
+      if (i > 0) then FGIntShiftRightBy(QFGInt, i);
+
+      FGIntMul(divisorFGInt, QFGInt, tmpFGInt);
+      FGIntDestroy(QFGInt);
+      FGIntSub(GInt, tmpFGInt, modFGInt);
+      FGIntDestroy(tmpFGInt);
+
+      while not ((modFGInt.sign = positive) and (FGIntCompareAbs(modFGInt, divisorFGInt) = St)) do
+      begin
+         if (modFGInt.sign = negative) then
+         begin
+            FGIntAdd(modFGInt, divisorFGInt, tmpFGInt);
+            FGIntDestroy(modFGInt);
+            modFGInt := tmpFGInt;
+         end else 
+         begin
+            FGIntSubBis(modFGInt, divisorFGInt);
+         end;
+      end;
+   end else
+      FGIntCopy(GInt, modFGInt);
+end;
+
+
+
+
+
+// raise fGInt to the power fGIntN mod modFGInt, and return (fGInt ^ fGIntN) % modFGInt 
+
+Procedure FGIntBarretModExp(Var FGInt, exp, modFGInt, res : TFGInt);
+Var
+   tmpFGInt1, invertedDivisor, tmpFGInt : TFGInt;
+   i, j, precision, tmp : Longword;
+   str : string;
+Begin
+   precision := (modFGInt.Number[0] - 1) * 32;
+   for i := 0 to 31 do
+      if (modFGInt.Number[modFGInt.Number[0]] shr i) = 0 then break else precision := precision + 1;
+
+   newtonInversion(modFGInt, precision, invertedDivisor);
+   FGIntCopy(FGInt, tmpFGInt1);
+
+   Base2StringToFGInt('1', res);
+
+   For i := 1 to exp.Number[0] - 1 do 
+   begin
+      tmp := exp.Number[i];
+      for j := 0 to 31 do
+      begin
+         if ((tmp shr j) and 1) = 1 then
+         begin
+            FGIntMul(res, tmpFGInt1, tmpFGInt);
+            FGIntDestroy(res);
+            FGIntBarrettModWithInvertedDivisorAndPrecision(tmpFGInt, modFGInt, invertedDivisor, precision, res);
+            FGIntDestroy(tmpFGInt);
+         end;
+         FGIntSquare(tmpFGInt1, tmpFGInt);
+         FGIntDestroy(tmpFGInt1);
+         FGIntBarrettModWithInvertedDivisorAndPrecision(tmpFGInt, modFGInt, invertedDivisor, precision, tmpFGInt1);
+         FGIntDestroy(tmpFGInt);
+      end;
+   end;
+   tmp := exp.Number[exp.Number[0]];
+   for j := 0 to 31 do
+   begin
+      if ((tmp shr j) and 1) = 1 then
+      begin
+         FGIntMul(res, tmpFGInt1, tmpFGInt);
+         FGIntDestroy(res);
+         FGIntBarrettModWithInvertedDivisorAndPrecision(tmpFGInt, modFGInt, invertedDivisor, precision, res);
+         FGIntDestroy(tmpFGInt)
+      end;
+      FGIntSquare(tmpFGInt1, tmpFGInt);
+      FGIntDestroy(tmpFGInt1);
+      FGIntBarrettModWithInvertedDivisorAndPrecision(tmpFGInt, modFGInt, invertedDivisor, precision, tmpFGInt1);
+      FGIntDestroy(tmpFGInt);
+   end;
+
+   FGIntDestroy(invertedDivisor);
+   FGIntDestroy(tmpFGInt1);
+
+End;
 
 
 End.
