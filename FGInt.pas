@@ -2854,7 +2854,7 @@ Procedure FGIntBarrettModWithInvertedDivisorAndPrecision(Const GInt, divisorFGIn
 Var
    QFGInt, tmpFGInt : TFGInt;
    i, j : LongWord;
-   str : string;
+   // str : string;
 begin
    if FGIntCompareAbs(GInt, divisorFGInt) <> St then
    begin
@@ -2901,7 +2901,7 @@ Procedure FGIntBarretModExp(Var FGInt, exp, modFGInt, res : TFGInt);
 Var
    tmpFGInt1, invertedDivisor, tmpFGInt : TFGInt;
    i, j, precision, tmp : Longword;
-   str : string;
+   // str : string;
 Begin
    precision := (modFGInt.Number[0] - 1) * 32;
    for i := 0 to 31 do
