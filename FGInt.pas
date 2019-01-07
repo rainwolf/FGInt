@@ -615,6 +615,7 @@ Var
    i, l, j : LongWord;
 Begin
    temp := str256;
+   while length(temp) > 4 and temp[1] = chr(0) do delete(temp, 1, 1);
    while length(temp) mod 4 <> 0 do temp := chr(0) + temp;
    l := length(temp) div 4;
    FGInt.sign := positive;
